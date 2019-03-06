@@ -112,7 +112,15 @@ def _merge_HaskellReplCollectInfo(*args):
     return info
 
 
-def _create_HaskellReplInfo(load_labels, mask, collect_info):
+def _load_as_source(load_labels, workspace, lbl):
+    # Load all targets in the current workspace.
+    if getattr(lbl, "workspace", workspace) == workspace:
+        return True
+    # Load all targets in the load_labels list
+    return lbl in load_labels
+
+
+def _create_HaskellReplInfo(load_labels, workspace, collect_info):
     repl_info = HaskellReplInfo(
         source_files = set.empty(),
         package_ids = set.empty(),
@@ -121,13 +129,13 @@ def _create_HaskellReplInfo(load_labels, mask, collect_info):
     )
 
     for (lbl, load_info) in collect_info.load_infos.items():
-        if lbl not in load_labels:  # XXX: Check mask as well
+        if not _load_as_source(load_labels, workspace, lbl):
             continue
 
         set.mutable_union(repl_info.source_files, load_info.source_files)
 
     for (lbl, dep_info) in collect_info.dep_infos.items():
-        if lbl in load_labels:  # XXX: Check mask as well
+        if _load_as_source(load_labels, workspace, lbl):
             continue
 
         set.mutable_insert(repl_info.package_ids, dep_info.package_id)
@@ -258,7 +266,7 @@ def _haskell_repl_impl(ctx):
         if HaskellReplCollectInfo in dep
     ])
     load_labels = [dep.label for dep in ctx.attr.deps]
-    repl_info = _create_HaskellReplInfo(load_labels, None, collect_info)
+    repl_info = _create_HaskellReplInfo(load_labels, ctx.workspace_name, collect_info)
     hs = haskell_context(ctx)
     _create_repl(hs, ctx, repl_info)
     return [
