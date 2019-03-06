@@ -25,7 +25,7 @@ HaskellReplLoadInfo = provider(
         # XXX: Do we need to distinguish boot and source files?
         # "boot_files": "Set of boot files",
         "source_files": "Set of files that contain Haskell modules.",
-        # XXX: C libraries to load
+        "cc_dependencies": "Direct cc library dependencies. See HaskellCcInfo.",
     },
 )
 
@@ -50,7 +50,7 @@ HaskellReplCollectInfo = provider(
     fields = {
         "load_infos": "Dictionary from labels to HaskellReplLoadInfo.",
         "dep_infos": "Dictionary from labels to HaskellReplDepInfo.",
-        # XXX: Transitive C library dependencies.
+        "transitive_cc_dependencies": "Transitive cc library dependencies. See HaskellCcInfo.",
         # XXX: Transitive prebuilt dependencies.
     },
 )
