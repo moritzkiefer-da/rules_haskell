@@ -10,6 +10,7 @@ load(
 load(
     "@io_tweag_rules_haskell//haskell:private/providers.bzl",
     "HaskellBinaryInfo",
+    "HaskellBuildInfo",
     "HaskellLibraryInfo",
 )
 load("@io_tweag_rules_haskell//haskell:private/set.bzl", "set")
@@ -35,7 +36,8 @@ HaskellReplDepInfo = provider(
     """,
     fields = {
         "package_id": "Workspace unique package identifier.",
-        # XXX: Package conf and cache.
+        #"package_confs": "Set of package .conf files.",
+        "package_caches": "Set of package cache files.",
     },
 )
 
@@ -62,6 +64,8 @@ HaskellReplInfo = provider(
     fields = {
         "source_files": "Set Haskell source files to load.",
         "package_ids": "Set of package ids to load.",
+        #"package_confs": "Set of package .conf files.",
+        "package_caches": "Set of package cache files.",
         # XXX: Transitive C library dependencies.
         # XXX: Transitive prebuilt dependencies.
     },
@@ -76,6 +80,7 @@ def _create_HaskellReplCollectInfo(target):
 
     if HaskellLibraryInfo in target:
         lib_info = target[HaskellLibraryInfo]
+        build_info = target[HaskellBuildInfo]
         collect_info.load_infos[target.label] = HaskellReplLoadInfo(
             source_files = set.union(
                 lib_info.boot_files,
@@ -84,6 +89,8 @@ def _create_HaskellReplCollectInfo(target):
         )
         collect_info.dep_infos[target.label] = HaskellReplDepInfo(
             package_id = lib_info.package_id,
+            #package_confs = build_info.package_confs,
+            package_caches = build_info.package_caches,
         )
     elif HaskellBinaryInfo in target:
         bin_info = target[HaskellBinaryInfo]
@@ -109,6 +116,8 @@ def _create_HaskellReplInfo(load_labels, mask, collect_info):
     repl_info = HaskellReplInfo(
         source_files = set.empty(),
         package_ids = set.empty(),
+        #package_confs = set.empty(),
+        package_caches = set.empty(),
     )
 
     for (lbl, load_info) in collect_info.load_infos.items():
@@ -122,6 +131,8 @@ def _create_HaskellReplInfo(load_labels, mask, collect_info):
             continue
 
         set.mutable_insert(repl_info.package_ids, dep_info.package_id)
+        #set.mutable_union(repl_info.package_confs, dep_info.package_confs)
+        set.mutable_union(repl_info.package_caches, dep_info.package_caches)
 
     return repl_info
             
@@ -141,9 +152,8 @@ def _create_repl(hs, ctx, repl_info):
     # Load built dependencies (-package-id, -package-db)
     for package_id in set.to_list(repl_info.package_ids):
         args.extend(["-package-id", package_id])
-    # XXX:
-    # for package_db in set.to_list(repl_info.package_dbs):
-    #     args.extend(["-package-db", package_db])
+    for package_cache in set.to_list(repl_info.package_caches):
+        args.extend(["-package-db", package_cache.dirname])
 
     # XXX: C library dependencies
 
@@ -209,7 +219,7 @@ def _create_repl(hs, ctx, repl_info):
             ghci_repl_wrapper,
         #    ghc_info_file,
         ]),
-        #set.to_depset(package_caches),
+        set.to_depset(repl_info.package_caches),
         #depset(library_deps),
         #depset(ld_library_deps),
         #set.to_depset(source_files),
